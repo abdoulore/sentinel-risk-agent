@@ -192,10 +192,30 @@ That split matters: the conditions in a typical Guardian occur roughly once a
 day, so screening locally means a host session is spent only when something
 actually needs deciding, rather than on every poll.
 
-**Honest limit:** the watcher monitors continuously, but *executing* still needs
-an Agent OS host session to relay the call — that is a property of the relay,
-not a missing feature. Put `watch --once` on a scheduler and branch on exit 10
-to close the loop.
+### Unattended
+
+```bash
+npm run watch -- --auto      # watch, and act when a rule fires
+```
+
+In `--auto` the watcher starts a headless Agent OS host session when the market
+matches, and that session runs the cycle, relays the MCP calls and executes
+within the Guardian's limits. No human in the loop.
+
+**A second limit applies there, and it matters.** The Validator bounds a single
+action; it says nothing about frequency. Bearish episodes last up to 45 minutes,
+so a correct Guardian polled every five minutes would fire ten times and leave
+under 3% of the position — every action valid, the aggregate absurd. A governor
+rate-limits autonomous action:
+
+```
+>= 60 minutes between actions · max 3 per day · optional lifetime cap
+```
+
+Configurable via `SENTINEL_MIN_MINUTES_BETWEEN`, `SENTINEL_MAX_ACTIONS_PER_DAY`
+and `SENTINEL_MAX_ACTIONS_TOTAL`. The budget is append-only and survives
+restarts, so a crash loop cannot reset it, and only *executed* actions are
+rationed — raising attention is free.
 
 ## Metrics
 
@@ -365,8 +385,9 @@ check:adapter ........ 29    check:console ........ 40
 check:runtime ........ 27    check:lab ............ 91
 check:relay .......... 86    check:compile ........ 82
                              check:watch .......... 30
+                             check:governor ....... 39
 
-Total ................ 492 assertions, 0 failures
+Total ................ 531 assertions, 0 failures
 ```
 
 Everything runs offline against mocked positions and stubbed upstreams. The

@@ -17,7 +17,7 @@
     "mcp:discover": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx spikes/custom-mcp-client/mcp-connect.ts --discover",
     "mcp:connect": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx spikes/custom-mcp-client/mcp-connect.ts",
     "check:relay": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/relay-check.ts",
-    "check:all": "npm run check:quantity && npm run check:adapter && npm run check:runtime && npm run check:relay && npm run check:metrics && npm run check:console && npm run check:lab && npm run check:compile && npm run check:watch",
+    "check:all": "npm run check:quantity && npm run check:adapter && npm run check:runtime && npm run check:relay && npm run check:metrics && npm run check:console && npm run check:lab && npm run check:compile && npm run check:watch && npm run check:governor",
     "relay": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/relay.ts",
     "sentinel": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/sentinel.ts",
     "skill:install": "node scripts/install-skill.mjs",
@@ -27,7 +27,8 @@
     "check:lab": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/lab-check.ts",
     "check:compile": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/compile-check.ts",
     "watch": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/watch.ts",
-    "check:watch": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/watch-check.ts"
+    "check:watch": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/watch-check.ts",
+    "check:governor": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/governor-check.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

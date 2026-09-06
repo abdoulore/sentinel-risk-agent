@@ -131,3 +131,10 @@ export const EVENT_LOG_PATH =
  */
 export const ATTENTION_PATH =
   process.env.SENTINEL_ATTENTION ?? ".sentinel/attention.json";
+
+/**
+ * Append-only record of autonomous actions, used by the governor to rate-limit.
+ * Survives restarts on purpose: a crash loop must not reset the budget.
+ */
+export const GOVERNOR_PATH =
+  process.env.SENTINEL_GOVERNOR ?? ".sentinel/governor.jsonl";

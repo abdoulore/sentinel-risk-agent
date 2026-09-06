@@ -26,6 +26,8 @@ import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { GuardianStore } from "@/lib/guardian/store";
 import { screenMarket, describeMarket, type ScreenResult } from "@/lib/watch/screen";
+import { Governor, limitsFromEnv } from "@/lib/watch/governor";
+import { runCycleViaHost } from "@/lib/watch/autopilot";
 import { ATTENTION_PATH } from "@/lib/config";
 
 const argv = process.argv.slice(2);
@@ -37,7 +39,11 @@ const has = (n: string) => argv.includes(`--${n}`);
 
 const everySec = Math.max(30, Number(flag("every") ?? 300));
 const once = has("once");
+// --auto turns watching into acting: when the market matches and the governor
+// permits it, start a host session and let the Guardian do its job unattended.
+const auto = has("auto");
 const store = new GuardianStore();
+const governor = new Governor(limitsFromEnv());
 
 function stamp(): string {
   return new Date().toISOString().slice(11, 19);
@@ -109,7 +115,28 @@ async function tick(): Promise<boolean> {
       console.log(`          ${r.ruleId}  ${r.deferred.length} condition(s) need live position data`);
     }
   }
-  console.log(`          run:  npm run sentinel -- cycle`);
+  if (!auto) {
+    console.log(`          run:  npm run sentinel -- cycle`);
+    console.log("");
+    return true;
+  }
+
+  // --- autonomous path -----------------------------------------------------
+  console.log(`          governor: ${governor.describe(state.guardian.id)}`);
+  const outcome = await runCycleViaHost({
+    cwd: process.cwd(),
+    log: (l) => console.log(`          ${l}`),
+  });
+
+  if (!outcome.started) {
+    console.log(`          not acting — ${outcome.reason}${outcome.output ? `: ${outcome.output}` : ""}`);
+  } else if (outcome.executed) {
+    const e = outcome.executed;
+    console.log(`          EXECUTED  order ${e.orderId}  ${e.quantity} ETH  position ${e.before} -> ${e.after}`);
+    clearAttention();
+  } else {
+    console.log(`          host session finished without an order (${outcome.reason})`);
+  }
   console.log("");
   return true;
 }
@@ -119,7 +146,14 @@ async function main() {
   console.log("SENTINEL WATCH");
   console.log(`  guardian   ${state.guardian?.id ?? "none"}  (${state.status})`);
   console.log(`  interval   ${once ? "single pass" : `${everySec}s`}`);
-  console.log("  source     public Binance market data — no credentials, no host, no trading");
+  console.log(`  mode       ${auto ? "AUTONOMOUS — will start a host session and act" : "watch only — reports, never acts"}`);
+  if (auto) {
+    const l = limitsFromEnv();
+    console.log(`  limits     >= ${l.minMinutesBetweenActions}m between actions · max ${l.maxActionsPerDay}/day` +
+      (l.maxActionsTotal ? ` · ${l.maxActionsTotal} lifetime` : ""));
+    if (state.guardian) console.log(`  governor   ${governor.describe(state.guardian.id)}`);
+  }
+  console.log("  source     public Binance market data for screening — no credentials, no trading here");
   console.log("");
 
   if (once) {
