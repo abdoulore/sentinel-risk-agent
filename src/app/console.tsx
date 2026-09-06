@@ -11,7 +11,7 @@
  * and every feed line from a stored domain event. Where the runtime has not
  * measured something, this renders a dash — never a zero, never a guess.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ConsoleState } from "@/lib/console/state";
 import type { StoredEvent } from "@/lib/events/store";
 import type { LiveMetricsReport } from "@/lib/metrics/report";
@@ -412,6 +412,25 @@ export default function Console({ initial }: { initial: ConsoleState }) {
   const [state, setState] = useState<ConsoleState>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const settled = useRef(false);
+
+  // Follow the newest event, but never yank the view away from someone who has
+  // scrolled up to read. 40px of slack absorbs sub-pixel rounding.
+  //
+  // The first paint is unconditional: arriving at the top of a feed that
+  // already has history would hide the very thing the operator opened it for.
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    if (!settled.current) {
+      settled.current = true;
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    if (atBottom) el.scrollTop = el.scrollHeight;
+  }, [state.events.length]);
 
   useEffect(() => {
     let alive = true;
@@ -566,22 +585,34 @@ export default function Console({ initial }: { initial: ConsoleState }) {
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-3">
+          {/*
+            Chronological, oldest first. A cycle tells a story — rule matched,
+            proposed, clamped, submitted, filled, position changed — and reading
+            it newest-first makes that story run backwards up the screen. The
+            view follows the newest event unless the operator has scrolled away
+            to read something.
+          */}
+          <div ref={feedRef} className="flex-1 overflow-y-auto px-5 py-3">
             {state.events.length === 0 ? (
               <p className="py-16 text-center text-[12px] text-faint">
                 No runtime events yet. The feed renders only what the runtime emits.
               </p>
             ) : (
               <ol className="flex flex-col">
-                {[...state.events].reverse().map((e, i) => {
+                {state.events.map((e, i) => {
                   const d = describe(e);
+                  const startsCycle = i > 0 && state.events[i - 1].cycleId !== e.cycleId;
                   return (
                     <li
                       key={`${e.cycleId}-${e.seq}-${i}`}
-                      className="flex gap-4 border-b border-line-soft py-2 last:border-b-0"
+                      className={`flex gap-4 border-b border-line-soft py-2 last:border-b-0 ${
+                        startsCycle ? "mt-3 border-t border-line pt-3" : ""
+                      }`}
                     >
                       <span className="tabular shrink-0 text-[11px] text-faint">{clock(e.at)}</span>
-                      <span className={`shrink-0 text-[11px] tracking-[0.06em] ${TONE[d.tone]} w-[190px]`}>
+                      <span
+                        className={`shrink-0 text-[11px] leading-snug tracking-[0.06em] ${TONE[d.tone]} w-[200px]`}
+                      >
                         {d.label}
                       </span>
                       <span className="tabular min-w-0 break-words text-[11px] text-dim">{d.detail}</span>
