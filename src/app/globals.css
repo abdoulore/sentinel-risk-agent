@@ -1,26 +1,112 @@
 @import "tailwindcss";
 
+/*
+ * Sentinel console — institutional risk terminal.
+ *
+ * The palette is deliberately narrow. Observable facts carry the page; colour
+ * is reserved for state that changes what the operator should do. Three
+ * accents only: amber for a decision the runtime made, red for danger or a
+ * halt, green for a verified fact. Everything else is grey.
+ *
+ * Dark only. This is a monitoring surface, not a marketing page.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0c0e;
+  --bg-panel: #101317;
+  --bg-raised: #161a1f;
+  --line: #22272e;
+  --line-soft: #1a1e24;
+
+  --text: #d6dae0;
+  --text-dim: #8b939d;
+  --text-faint: #5d656f;
+
+  --ok: #4a9d6e;
+  --warn: #c9963f;
+  --danger: #c05c51;
+  --live: #5b8dbe;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-bg: var(--bg);
+  --color-panel: var(--bg-panel);
+  --color-raised: var(--bg-raised);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-text: var(--text);
+  --color-dim: var(--text-dim);
+  --color-faint: var(--text-faint);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-live: var(--live);
   --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers are compared down columns; they must not shift. */
+.tabular {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A label above a value. Small, dim, never competing with the number. */
+.label {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.hairline {
+  border-color: var(--line);
+}
+
+/* The one piece of motion on the page: a live cycle is in flight. */
+@keyframes sentinel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse {
+  animation: sentinel-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border: 3px solid var(--bg);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2e353d;
 }

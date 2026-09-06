@@ -1,0 +1,12 @@
+{
+  "client_id": "https://sessions-imaging-sea-disciplinary.trycloudflare.com/oauth/client-metadata.json",
+  "client_name": "Sentinel Risk Guardian",
+  "client_uri": "https://sessions-imaging-sea-disciplinary.trycloudflare.com",
+  "redirect_uris": [
+    "http://localhost:8787/callback",
+    "https://sessions-imaging-sea-disciplinary.trycloudflare.com/api/mcp/callback"
+  ],
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}

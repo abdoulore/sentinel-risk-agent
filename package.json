@@ -6,14 +6,36 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:threshold": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/threshold-check.ts",
+    "spike": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/spike.ts",
+    "check:quantity": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/quantity-check.ts",
+    "check:engine": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/engine-check.ts",
+    "check:compiler": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/compiler-check.ts",
+    "check:adapter": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/adapter-check.ts",
+    "check:runtime": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/runtime-check.ts",
+    "mcp:discover": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx spikes/custom-mcp-client/mcp-connect.ts --discover",
+    "mcp:connect": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx spikes/custom-mcp-client/mcp-connect.ts",
+    "check:relay": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/relay-check.ts",
+    "check:all": "npm run check:quantity && npm run check:adapter && npm run check:runtime && npm run check:relay && npm run check:metrics && npm run check:console && npm run check:lab && npm run check:compile",
+    "relay": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/relay.ts",
+    "sentinel": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/sentinel.ts",
+    "skill:install": "node scripts/install-skill.mjs",
+    "check:metrics": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/metrics-check.ts",
+    "check:console": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/console-check.ts",
+    "console": "next dev",
+    "check:lab": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/lab-check.ts",
+    "check:compile": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/compile-check.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -21,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
