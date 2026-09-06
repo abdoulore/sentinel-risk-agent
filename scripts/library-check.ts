@@ -147,6 +147,36 @@ function main() {
   }
 
   /* ==================================================================== */
+  {
+    // The capped variant exists because a ceiling and an escalation ladder are
+    // independent choices. staged-derisk can close you out; this one cannot,
+    // and that difference has to be real rather than described.
+    const g = loaded["staged-capped.json"];
+    if (g) {
+      check("staged-capped escalates in the same order as staged-derisk",
+        fires(g, { funding_rate: 0.0004, momentum: "BEARISH" }) === "R4" &&
+        fires(g, { oi_change_percent: 18, momentum: "BEARISH" }) === "R3" &&
+        fires(g, { funding_rate: 0.0006, unrealized_pnl_percent: -5 }) === "R2" &&
+        fires(g, { liquidation_distance_percent: 6 }) === "R1");
+      check("its ceiling is 30, not 100", g.maxReductionPercent === 30);
+      const big = validateAction({ type: "reduce_position", percent: 80 }, {
+        guardian: g, status: "ACTIVE", position: POSITION, filters: FILTERS });
+      check("an oversized request is clamped to the ceiling",
+        big.resolution === "CLAMPED" && big.executedPercent === 30, "80% -> 30%");
+      const closeOut = validateAction({ type: "close_position" }, {
+        guardian: g, status: "ACTIVE", position: POSITION, filters: FILTERS });
+      check("IT CANNOT CLOSE YOU OUT — even a full close clamps to 30%",
+        closeOut.resolution === "CLAMPED" && closeOut.executedPercent === 30);
+      const staged = loaded["staged-derisk.json"];
+      if (staged) {
+        check("which is the only difference from staged-derisk",
+          g.rules.length === staged.rules.length &&
+          g.maxReductionPercent !== staged.maxReductionPercent);
+      }
+    }
+  }
+
+  /* ==================================================================== */
   section("4. Ceilings are real, and close_position obeys them");
 
   {

@@ -19,6 +19,7 @@ these exist to show the shape, not to be obeyed.
 | `liquidation-defence.json` | getting close to liquidation |
 | `drawdown.json` | a position going against you |
 | `staged-derisk.json` | escalating stress — reduces further as it worsens |
+| `staged-capped.json` | the same escalation, but never more than 30% in one action |
 | `profit-lock.json` | giving back a gain |
 | `leverage-discipline.json` | being too leveraged when margin tightens |
 

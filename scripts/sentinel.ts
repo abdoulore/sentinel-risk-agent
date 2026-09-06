@@ -300,7 +300,7 @@ async function main() {
       const s = store.read();
       const g = s.guardian ?? s.draft;
       if (!g) {
-        console.log("No Guardian. Create one:  npm run sentinel -- compile \"...\"");
+        console.log("No Guardian.  Create one:  npm run sentinel -- guardian:create --file guardians/<name>.json");
         break;
       }
       console.log();
@@ -351,6 +351,59 @@ async function main() {
 
 
     /* -------------------------------------------------------------------- */
+    case "remove": {
+      // Retire a Guardian.
+      //
+      // Pausing stops a Guardian acting; it does not remove it. Without this,
+      // a policy you have finished with stays in the state file, shows up in
+      // `show` and `status`, and is one `resume` away from being live again.
+      //
+      // Removal is deliberate rather than convenient: it refuses while a cycle
+      // is in flight, and it prints the policy it removed so nothing is lost
+      // that cannot be pasted back.
+      const s = store.read();
+      const target = s.guardian ?? s.draft;
+      if (!target) {
+        console.log("No Guardian to remove.");
+        break;
+      }
+      if (s.cycle) {
+        console.error(
+          `Cycle ${s.cycle.cycleId} is in flight. Removing the Guardian now would\n` +
+            "orphan its journalled relay requests. Finish or reset the cycle first.",
+        );
+        process.exitCode = EXIT_ERROR;
+        return;
+      }
+
+      console.log();
+      console.log(`REMOVED  ${target.id}  ${target.name}`);
+      console.log();
+      console.log("  Keep this if you may want it back:");
+      console.log();
+      console.log(
+        JSON.stringify(target, null, 2)
+          .split("\n")
+          .map((l) => `    ${l}`)
+          .join("\n"),
+      );
+      console.log();
+
+      // A scenario armed against a removed Guardian is meaningless, and leaving
+      // it would silently colour the first cycle of whatever replaces it.
+      const hadLab = Boolean(s.lab);
+      store.update({ guardian: null, draft: null, status: "PAUSED", lab: null });
+
+      console.log("  Guardian removed. Sentinel now holds no policy and will not act.");
+      if (hadLab) console.log("  The armed Agent Lab scenario was cleared with it.");
+      console.log(
+        "  Action history in the governor's log is kept — it is an audit record,\n" +
+          "  not policy.",
+      );
+      console.log();
+      break;
+    }
+
     case "check": {
       // Sentinel as a risk desk.
       //
@@ -714,11 +767,16 @@ async function main() {
     default:
       console.log(
         "Sentinel — an autonomous position-risk Guardian.\n\n" +
-          '  compile "<instruction>"     compile a plain-language rule into a Guardian\n' +
+          "  guardian:schema             the contract a Guardian must satisfy\n" +
+          "  guardian:create --file <f>  validate a policy file into a draft\n" +
+          '  compile "<instruction>"     compile plain language into a draft (needs an API key)\n' +
           "  show                        the Guardian, readable\n" +
           "  activate                    put the reviewed draft in force\n" +
           "  pause | stop | resume       control\n" +
+          "  remove                      retire the Guardian entirely\n" +
+          "  check <proposal> [--json]   would this action be permitted, and at what size\n" +
           "  cycle [--lab k=v,…] [--new] run one evaluation\n" +
+          "  metrics [--source]          current measurements\n" +
           "  status                      current state\n",
       );
   }
