@@ -65,4 +65,14 @@ export interface CallMeta {
 export interface McpToolInvoker {
   call<T>(tool: string, args?: Record<string, unknown>, meta?: CallMeta): Promise<T>;
   close(): Promise<void>;
+  /**
+   * When a write's intent was first journaled, in epoch ms, if known.
+   *
+   * A cycle spans several host turns, so the run that *reports* an order is
+   * usually not the run that submitted it — `Date.now()` there is the moment of
+   * a replay, not of the submission. The journal recorded the real instant just
+   * before the host relayed the call, and this is how the feed gets at it.
+   * Optional: mocks and non-journal invokers simply omit it.
+   */
+  writeRequestedAt?(executionId: string): number | undefined;
 }

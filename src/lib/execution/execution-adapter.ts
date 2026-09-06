@@ -65,6 +65,15 @@ export interface ExecutionAdapter {
   getExchangeFilters(symbol: string, step?: string): Promise<SymbolFilters>;
   reducePosition(input: ReducePositionInput): Promise<OrderResult>;
   getOrder(symbol: string, orderId: string, step?: string): Promise<OrderResult>;
+  /**
+   * The real instant this write was submitted, if the adapter can know it.
+   *
+   * A cycle spans several host turns, so the run that reports a fill is
+   * usually not the run that submitted it. Without this, `Date.now()` in the
+   * reporting run would be stamped on ORDER_SUBMITTED and the feed would show a
+   * submission *after* the fill it caused — a time that never happened.
+   */
+  submittedAtFor?(executionId: string): number | undefined;
 }
 
 /* ----------------------------- raw MCP shapes ----------------------------- */
@@ -320,6 +329,11 @@ export class McpExecutionAdapter implements ExecutionAdapter {
     return order;
   }
 
+  /** Delegates to the relay, which holds the journal that recorded the intent. */
+  submittedAtFor(executionId: string): number | undefined {
+    return this.mcp.writeRequestedAt?.(executionId);
+  }
+
   async getOrder(symbol: string, orderId: string, step = "ORDER_VERIFY"): Promise<OrderResult> {
     const raw = await this.mcp.call<McpRawOrder>(
       "futures_usds_queryOrder",
@@ -366,8 +380,15 @@ export async function submitVerifiedReduction(
   input: ReducePositionInput,
 ): Promise<ReductionOutcome> {
   const positionBefore = await adapter.getPosition(input.symbol, "POSITION_BEFORE");
-  const submittedAt = Date.now();
+  const attemptedAt = Date.now();
   const order = await adapter.reducePosition(input);
+
+  // Prefer the instant the journal recorded the intent over this run's clock.
+  // On the turn that actually submitted, the two are the same; on a replay only
+  // the journaled one is true, and stamping `Date.now()` here would put the
+  // submission after the fill in the feed.
+  const submittedAt =
+    (input.executionId ? adapter.submittedAtFor?.(input.executionId) : undefined) ?? attemptedAt;
   // A distinct step, deliberately: same tool, same arguments, but this read must
   // be fresh or the shrink check below would confirm itself against stale state.
   const positionAfter = await adapter.getPosition(input.symbol, "POSITION_AFTER");

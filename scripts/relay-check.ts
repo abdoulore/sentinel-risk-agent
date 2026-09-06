@@ -1057,6 +1057,87 @@ async function main() {
     }
   }
 
+
+  /* ======================================================================== */
+  section("14. ORDER_SUBMITTED reports the real submission time");
+
+  {
+    const journal = freshJournal();
+    const host = new FakeHost(journal, {
+      futures_usds_positionInformationV2: () => rawPosition(0.009),
+      // Binance's fill time, as it would come back on the wire.
+      futures_usds_newOrder: () => rawOrder({ updateTime: Date.now() }),
+    });
+    const input: ReducePositionInput = {
+      symbol: SYMBOL,
+      side: "SELL",
+      quantity: "0.002",
+      executionId: "G-ETH-03:R1:cycle-TIME",
+    };
+
+    const relay = new HostRelayInvoker({ cycleId: "cycle-TIME", journal });
+    const adapter = new McpExecutionAdapter(relay, SYMBOL);
+
+    // Drive until the WRITE intent is journaled. The adapter's own POSITION_GUARD
+    // read pauses first, so the write is not reached on the very first pass.
+    for (let turn = 0; turn < 5; turn++) {
+      try {
+        await adapter.reducePosition(input);
+        break;
+      } catch (e) {
+        if (!(e instanceof RelayRequired)) throw e;
+        if (e.request.kind === "WRITE") break; // intent journaled; stop before fulfilling
+        host.drain();
+      }
+    }
+    const intentRecord = journal.findByExecutionId(input.executionId!);
+    check("the write intent was journaled", intentRecord !== undefined);
+    const intentAt = Date.parse(intentRecord!.requestedAt);
+    host.drain();
+
+    // A LATER host turn replays and reports the order. Without the fix this run's
+    // clock would be stamped on the submission.
+    await new Promise((r) => setTimeout(r, 25));
+    const relay2 = new HostRelayInvoker({ cycleId: "cycle-TIME", journal });
+    const adapter2 = new McpExecutionAdapter(relay2, SYMBOL);
+    const replayRunStartedAt = Date.now();
+    const outcome = await driveToCompletion(
+      () => submitVerifiedReduction(adapter2, input),
+      host,
+    );
+
+    check(
+      "the relay can report when the write was journaled",
+      relay2.writeRequestedAt(input.executionId!) === intentAt,
+      String(relay2.writeRequestedAt(input.executionId!)),
+    );
+    check(
+      "submittedAt is the journaled intent, not the replay's clock",
+      outcome.submittedAt === intentAt,
+      `submittedAt=${outcome.submittedAt} intent=${intentAt} replayRun=${replayRunStartedAt}`,
+    );
+    check(
+      "and is strictly earlier than the replaying run",
+      outcome.submittedAt < replayRunStartedAt,
+      `${replayRunStartedAt - outcome.submittedAt}ms earlier`,
+    );
+    check(
+      "so the feed never shows a submission after its own fill",
+      outcome.submittedAt <= outcome.order.updateTime,
+      `submitted=${outcome.submittedAt} filled=${outcome.order.updateTime}`,
+    );
+
+    // An adapter with no journal behind it must still work.
+    const plain = new McpExecutionAdapter(
+      { call: async () => ({}) as never, close: async () => {} },
+      SYMBOL,
+    );
+    check(
+      "the hook is optional — no journal, no crash",
+      plain.submittedAtFor("anything") === undefined,
+    );
+  }
+
   console.log(
     failed ? "\nRELAY CHECKS FAILED.\n" : "\nAll host-relay checks passed.\n",
   );

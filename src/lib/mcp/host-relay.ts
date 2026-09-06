@@ -297,6 +297,14 @@ export class HostRelayInvoker implements McpToolInvoker {
     return new McpToolError(prior.tool, detail);
   }
 
+  /** The instant a write's intent was journaled — the real submission time. */
+  writeRequestedAt(executionId: string): number | undefined {
+    const record = this.journal.findByExecutionId(executionId);
+    if (!record) return undefined;
+    const at = Date.parse(record.requestedAt);
+    return Number.isFinite(at) ? at : undefined;
+  }
+
   async close(): Promise<void> {
     /* nothing to close: the host owns the session */
   }
