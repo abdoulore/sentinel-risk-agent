@@ -1,6 +1,6 @@
 ---
 name: sentinel
-description: Drive Sentinel, the autonomous position-risk Guardian for the ETHUSDC futures position. Use when the user wants to protect a position, create/review/activate/pause/stop a Guardian, run a Guardian evaluation cycle, relay a pending Binance Agent OS call, check Sentinel status, or run an Agent Lab scenario. Also use when a Sentinel command reports RELAY_REQUIRED, EXECUTION_STATE_UNKNOWN, or IDEMPOTENCY_CONFLICT.
+description: Drive Sentinel, the autonomous position-risk Guardian for the ETHUSDC futures position. Use when the user wants to protect a position, create/review/activate/pause/stop a Guardian, run a Guardian evaluation cycle, relay a pending Binance Agent OS call, check Sentinel status, ask whether a proposed action is within policy, or run an Agent Lab scenario. Also use when a Sentinel command reports RELAY_REQUIRED, EXECUTION_STATE_UNKNOWN, or IDEMPOTENCY_CONFLICT.
 ---
 
 # Sentinel
@@ -61,6 +61,9 @@ wrong. If it looks wrong, stop and tell the user.
 | "pause" | `npm run sentinel -- pause` |
 | "stop", "emergency stop" | `npm run sentinel -- stop` |
 | "resume" | `npm run sentinel -- resume` |
+| "remove the guardian", "retire it", "delete the policy" | `npm run sentinel -- remove` |
+| "can I cut X%?", "would this be allowed?", "is this within policy?" | `npm run sentinel -- check '{"type":"reduce_position","percent":X}'` |
+| an agent or script asks permission before acting | `npm run sentinel -- check --json` and branch on the exit code |
 | "run a cycle", "check now" | `npm run sentinel -- cycle` |
 | "what are the metrics", "show live data" | `npm run sentinel -- metrics` (add `--source` for provenance) |
 | "simulate…", "what if funding spiked" | `npm run sentinel -- cycle --new --lab funding_rate=0.00041,momentum=BEARISH` |
@@ -136,6 +139,29 @@ result look different.
 summary, any warnings, any `unsupported` items, and that the status is DRAFT.
 **Do not activate automatically.** Activation requires the user to say so, and
 then `npm run sentinel -- activate`.
+
+## Asking permission — Sentinel as a risk desk
+
+`check` answers "would this be permitted, and at what size" **without executing
+anything**. It reads the live position through the relay and returns a verdict.
+
+```bash
+npm run sentinel -- check '{"type":"reduce_position","percent":80}'
+```
+
+```
+VERDICT     CLAMPED
+permitted   30%  =  0.003 ETH  SELL reduceOnly
+```
+
+Exit code is the verdict, so a script or another agent can branch without
+parsing: **0** allowed as asked, **11** clamped to a smaller size, **12**
+rejected. `--json` gives the structured form.
+
+This is what lets a strategy agent ask before it acts rather than discovering
+the limit afterwards. Report the verdict as given. **Never present a CLAMPED
+verdict as an approval**, and never execute the original size because the
+clamped one seemed too small.
 
 ## Exit codes — the contract
 
