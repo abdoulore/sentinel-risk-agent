@@ -47,3 +47,9 @@ next-env.d.ts
 
 # Relay journal — order intent and raw Binance responses (operational evidence)
 .sentinel/
+
+# Production aids and scratch state — not part of the product
+DEMO.md
+VOICEOVER.md
+PROOF.txt
+/guardian.json
