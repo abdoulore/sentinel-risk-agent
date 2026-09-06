@@ -7,6 +7,8 @@
  *   npm run sentinel -- activate                    put the draft in force
  *   npm run sentinel -- pause | stop | resume       control status
  *   npm run sentinel -- cycle [--lab k=v,…] [--new] run one Guardian cycle
+ *   npm run sentinel -- check '{"type":"reduce_position","percent":80}'
+ *                                                  ALLOW / CLAMP / REJECT, no execution
  *   npm run sentinel -- metrics [--fresh] [--source] one live MetricSnapshot
  *   npm run sentinel -- status                      one-screen state
  *
@@ -22,6 +24,7 @@
  *   1   ordinary failure
  */
 import { validateGuardianInput, CompileError } from "@/lib/compiler/validate";
+import { validateAction } from "@/lib/policy/validator";
 import { guardianContract, renderContract } from "@/lib/compiler/contract";
 import { readFileSync } from "node:fs";
 import { GuardianStore } from "@/lib/guardian/store";
@@ -346,6 +349,141 @@ async function main() {
       break;
     }
 
+
+    /* -------------------------------------------------------------------- */
+    case "check": {
+      // Sentinel as a risk desk.
+      //
+      //   another agent proposes an action
+      //     -> Sentinel checks it against the user's Guardian
+      //     -> ALLOW / CLAMP / REJECT
+      //
+      // This executes nothing. It answers "would this be permitted, and at what
+      // size" — which is what lets a strategy agent, a script, or a person ask
+      // permission before acting rather than discovering the limit afterwards.
+      //
+      // It needs the live position and exchange filters, so it goes through the
+      // same relay as a cycle. That is deliberate: a verdict computed against
+      // stale position data would be worse than no verdict.
+      let raw: string;
+      const file = flag("file");
+      if (file) {
+        try {
+          raw = readFileSync(file, "utf8");
+        } catch (e) {
+          console.error(`Could not read ${file}: ${e instanceof Error ? e.message : String(e)}`);
+          process.exitCode = EXIT_ERROR;
+          return;
+        }
+      } else if (argv[1] && !argv[1].startsWith("--")) {
+        raw = argv[1];
+      } else {
+        raw = readFileSync(0, "utf8");
+      }
+
+      let proposal: { type?: unknown; percent?: unknown };
+      try {
+        proposal = JSON.parse(raw.trim());
+      } catch (e) {
+        console.error(`Proposal is not valid JSON: ${e instanceof Error ? e.message : String(e)}`);
+        process.exitCode = EXIT_ERROR;
+        return;
+      }
+
+      const s = store.read();
+      if (!s.guardian) {
+        console.error("No active Guardian — there is no policy to check against.");
+        process.exitCode = EXIT_ERROR;
+        return;
+      }
+      const guardian = s.guardian;
+
+      // The action is validated as written; an unknown type is rejected by the
+      // Validator itself rather than being guessed at here.
+      const action = {
+        type: String(proposal.type ?? ""),
+        ...(proposal.percent !== undefined && proposal.percent !== null
+          ? { percent: Number(proposal.percent) }
+          : {}),
+      } as Parameters<typeof validateAction>[0];
+
+      const cycle = store.beginCycle({}, has("new"));
+      const relay = new HostRelayInvoker({ cycleId: cycle.cycleId, journal });
+      const adapter = new McpExecutionAdapter(relay, guardian.symbol);
+
+      try {
+        const reads = await Promise.allSettled([
+          adapter.getPosition(guardian.symbol, "POSITION_BEFORE"),
+          adapter.getExchangeFilters(guardian.symbol, "FILTERS"),
+        ]);
+        if (reads.some((r) => r.status === "rejected" && r.reason instanceof RelayRequired)) {
+          process.exitCode = reportPending(cycle.cycleId);
+          return;
+        }
+        for (const r of reads) if (r.status === "rejected") throw r.reason;
+        const position = (reads[0] as PromiseFulfilledResult<Awaited<ReturnType<typeof adapter.getPosition>>>).value;
+        const filters = (reads[1] as PromiseFulfilledResult<Awaited<ReturnType<typeof adapter.getExchangeFilters>>>).value;
+
+        const verdict = validateAction(action, {
+          guardian,
+          status: s.status,
+          position,
+          filters,
+        });
+
+        const asJson = has("json");
+        if (asJson) {
+          console.log(JSON.stringify({
+            verdict: verdict.resolution,
+            allowed: verdict.allowed,
+            reason: verdict.reason ?? null,
+            requestedPercent: verdict.requestedPercent ?? null,
+            maxAllowedPercent: verdict.maxAllowedPercent ?? null,
+            executedPercent: verdict.executedPercent ?? null,
+            quantity: verdict.quantity?.steppedQty ?? null,
+            side: verdict.side ?? null,
+            guardian: guardian.id,
+            symbol: guardian.symbol,
+            positionBefore: position.positionAmt,
+            positionAfter: verdict.quantity
+              ? Number((Math.abs(position.positionAmt) - Number(verdict.quantity.steppedQty)).toFixed(8))
+              : position.positionAmt,
+          }, null, 2));
+        } else {
+          console.log();
+          console.log(`RISK CHECK — ${guardian.id} on ${guardian.symbol}`);
+          console.log();
+          console.log(`  proposed        ${action.type}${action.percent !== undefined ? ` ${action.percent}%` : ""}`);
+          console.log(`  policy ceiling  ${guardian.maxReductionPercent}%`);
+          console.log(`  position        ${position.positionAmt} ETH`);
+          console.log();
+          console.log(`  VERDICT         ${verdict.resolution}${verdict.reason ? `  (${verdict.reason})` : ""}`);
+          if (verdict.quantity) {
+            console.log(`  permitted       ${verdict.executedPercent}%  =  ${verdict.quantity.steppedQty} ETH  ${verdict.side} reduceOnly`);
+            console.log(`  would leave     ${(Math.abs(position.positionAmt) - Number(verdict.quantity.steppedQty)).toFixed(3)} ETH`);
+          }
+          console.log();
+          for (const c of verdict.checks) {
+            console.log(`    ${c.passed ? "ok " : "NO "} ${c.label}${c.detail ? ` — ${c.detail}` : ""}`);
+          }
+          console.log();
+          console.log("  Nothing was executed. This is a verdict, not an order.");
+          console.log();
+        }
+
+        // Exit code is the verdict, so a caller can branch without parsing.
+        process.exitCode =
+          verdict.resolution === "EXECUTE" ? 0 : verdict.resolution === "CLAMPED" ? 11 : 12;
+        store.endCycle();
+        return;
+      } catch (e) {
+        if (e instanceof RelayRequired) {
+          process.exitCode = reportPending(cycle.cycleId);
+          return;
+        }
+        throw e;
+      }
+    }
 
     /* -------------------------------------------------------------------- */
     case "metrics": {

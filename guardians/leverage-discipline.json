@@ -1,0 +1,25 @@
+{
+  "id": "G-LEVERAGE",
+  "name": "Leverage Discipline",
+  "symbol": "ETHUSDC",
+  "maxReductionPercent": 40,
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [
+        { "metric": "leverage", "operator": ">", "value": 5 },
+        { "metric": "margin_ratio", "operator": ">", "value": 0.4 }
+      ],
+      "action": { "type": "reduce_position", "percent": 40 }
+    },
+    {
+      "id": "R2",
+      "conditions": [
+        { "metric": "leverage", "operator": ">", "value": 10 },
+        { "metric": "momentum", "operator": "==", "value": "BEARISH" }
+      ],
+      "action": { "type": "reduce_position", "percent": 30 }
+    }
+  ],
+  "unsupported": []
+}

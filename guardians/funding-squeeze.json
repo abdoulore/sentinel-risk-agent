@@ -1,0 +1,17 @@
+{
+  "id": "G-FUNDING-SQUEEZE",
+  "name": "Funding Squeeze Defence",
+  "symbol": "ETHUSDC",
+  "maxReductionPercent": 30,
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [
+        { "metric": "funding_rate", "operator": ">", "value": 0.0003 },
+        { "metric": "momentum", "operator": "==", "value": "BEARISH" }
+      ],
+      "action": { "type": "reduce_position", "percent": 30 }
+    }
+  ],
+  "unsupported": []
+}

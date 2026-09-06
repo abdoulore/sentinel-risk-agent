@@ -217,6 +217,57 @@ and `SENTINEL_MAX_ACTIONS_TOTAL`. The budget is append-only and survives
 restarts, so a crash loop cannot reset it, and only *executed* actions are
 rationed — raising attention is free.
 
+## It is a policy engine, not a funding bot
+
+The example above uses funding and momentum, but nothing in the engine is about
+funding. Rules can combine any of the eleven metrics, and `guardians/` ships
+ready-made policies for the common cases:
+
+| Policy | Protects against |
+|---|---|
+| `liquidation-defence` | getting close to liquidation |
+| `drawdown` | a position going against you |
+| `staged-derisk` | escalating stress — cuts further as it worsens |
+| `profit-lock` | giving back a gain |
+| `leverage-discipline` | being over-leveraged when margin tightens |
+| `funding-squeeze` | paying to hold into a downtrend |
+
+Rules are evaluated **in order, first match wins**, so a Guardian can escalate:
+
+```
+liquidation < 8%                          → close
+funding > 0.05%  AND  down more than 4%   → reduce 30%
+OI +15%          AND  bearish             → reduce 25%
+funding > 0.03%  AND  bearish             → reduce 20%
+```
+
+That is one Guardian, four stages, no code changes.
+
+## Asking permission — Sentinel as a risk desk
+
+The Validator answers a question any agent can ask: *would this action be
+permitted, and at what size?*
+
+```bash
+echo '{"type":"reduce_position","percent":80}' | npm run sentinel -- check
+```
+
+```
+RISK CHECK — G-ETH-03 on ETHUSDC
+  proposed        reduce_position 80%
+  policy ceiling  30%
+  VERDICT         CLAMPED  (MAX_REDUCTION_EXCEEDED)
+  permitted       30%  =  0.030 ETH  SELL reduceOnly
+  Nothing was executed. This is a verdict, not an order.
+```
+
+Exit codes are the verdict — `0` allow, `11` clamp, `12` reject — and `--json`
+gives a machine-readable form. Nothing executes.
+
+This is the direction that matters most: a strategy agent proposes, Sentinel
+checks it against the user's policy, and only the permitted size proceeds. A
+risk desk between an AI trader and the exchange.
+
 ## Metrics
 
 Pure code. No model involvement anywhere in this path.
@@ -386,8 +437,9 @@ check:runtime ........ 27    check:lab ............ 91
 check:relay .......... 86    check:compile ........ 82
                              check:watch .......... 30
                              check:governor ....... 39
+                             check:library ........ 39
 
-Total ................ 531 assertions, 0 failures
+Total ................ 570 assertions, 0 failures
 ```
 
 Everything runs offline against mocked positions and stubbed upstreams. The

@@ -1,0 +1,19 @@
+{
+  "id": "G-LIQ-DEFENCE",
+  "name": "Liquidation Defence",
+  "symbol": "ETHUSDC",
+  "maxReductionPercent": 50,
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [{ "metric": "liquidation_distance_percent", "operator": "<", "value": 8 }],
+      "action": { "type": "reduce_position", "percent": 50 }
+    },
+    {
+      "id": "R2",
+      "conditions": [{ "metric": "liquidation_distance_percent", "operator": "<", "value": 15 }],
+      "action": { "type": "reduce_position", "percent": 25 }
+    }
+  ],
+  "unsupported": []
+}

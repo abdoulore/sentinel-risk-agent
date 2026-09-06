@@ -1,0 +1,38 @@
+{
+  "id": "G-STAGED",
+  "name": "Staged De-risk",
+  "symbol": "ETHUSDC",
+  "maxReductionPercent": 100,
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [{ "metric": "liquidation_distance_percent", "operator": "<", "value": 8 }],
+      "action": { "type": "close_position" }
+    },
+    {
+      "id": "R2",
+      "conditions": [
+        { "metric": "funding_rate", "operator": ">", "value": 0.0005 },
+        { "metric": "unrealized_pnl_percent", "operator": "<", "value": -4 }
+      ],
+      "action": { "type": "reduce_position", "percent": 30 }
+    },
+    {
+      "id": "R3",
+      "conditions": [
+        { "metric": "oi_change_percent", "operator": ">", "value": 15 },
+        { "metric": "momentum", "operator": "==", "value": "BEARISH" }
+      ],
+      "action": { "type": "reduce_position", "percent": 25 }
+    },
+    {
+      "id": "R4",
+      "conditions": [
+        { "metric": "funding_rate", "operator": ">", "value": 0.0003 },
+        { "metric": "momentum", "operator": "==", "value": "BEARISH" }
+      ],
+      "action": { "type": "reduce_position", "percent": 20 }
+    }
+  ],
+  "unsupported": []
+}

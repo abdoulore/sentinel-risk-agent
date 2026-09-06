@@ -1,0 +1,19 @@
+{
+  "id": "G-PROFIT-LOCK",
+  "name": "Profit Lock",
+  "symbol": "ETHUSDC",
+  "maxReductionPercent": 50,
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [
+        { "metric": "unrealized_pnl_percent", "operator": ">", "value": 12 },
+        { "metric": "momentum", "operator": "==", "value": "BEARISH" }
+      ],
+      "action": { "type": "reduce_position", "percent": 50 }
+    }
+  ],
+  "unsupported": [
+    "True trailing profit protection — 'if PnL reached 12% then fell back below 8%' — needs a remembered peak. Sentinel evaluates each cycle independently, so this rule approximates it by acting when a large gain meets a bearish turn."
+  ]
+}

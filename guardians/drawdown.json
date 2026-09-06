@@ -1,0 +1,24 @@
+{
+  "id": "G-DRAWDOWN",
+  "name": "Drawdown Protection",
+  "symbol": "ETHUSDC",
+  "maxReductionPercent": 50,
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [
+        { "metric": "unrealized_pnl_percent", "operator": "<", "value": -10 }
+      ],
+      "action": { "type": "reduce_position", "percent": 50 }
+    },
+    {
+      "id": "R2",
+      "conditions": [
+        { "metric": "unrealized_pnl_percent", "operator": "<", "value": -5 },
+        { "metric": "momentum", "operator": "==", "value": "BEARISH" }
+      ],
+      "action": { "type": "reduce_position", "percent": 30 }
+    }
+  ],
+  "unsupported": []
+}
