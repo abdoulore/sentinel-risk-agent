@@ -286,8 +286,8 @@ npm run console        # http://localhost:3000
 
 - **Command strip** — status, position, leverage, PnL, funding, momentum,
   Guardian state, relay state, `STOP GUARDIAN`
-- **Agent feed** — stored domain events only; it cannot manufacture an order ID,
-  quantity, price or fill
+- **Agent feed** — stored domain events only, oldest first so a cycle reads as
+  the story it is; it cannot manufacture an order ID, quantity, price or fill
 - **Panels** — Guardian details, measurements, Agent Lab
 
 The console is a reader. Its endpoint accepts stop / pause / resume and arming
@@ -339,9 +339,9 @@ tsc --noEmit ......... exit 0
 check:quantity ....... 38    check:metrics ........ 69
 check:adapter ........ 29    check:console ........ 40
 check:runtime ........ 27    check:lab ............ 91
-check:relay .......... 80    check:compile ........ 82
+check:relay .......... 86    check:compile ........ 82
 
-Total ................ 456 assertions, 0 failures
+Total ................ 462 assertions, 0 failures
 ```
 
 Everything runs offline against mocked positions and stubbed upstreams. The
