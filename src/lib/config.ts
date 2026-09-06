@@ -123,3 +123,11 @@ export const GUARDIAN_STATE_PATH =
 /** Append-only domain event log. The Agent Feed's only data source. */
 export const EVENT_LOG_PATH =
   process.env.SENTINEL_EVENT_LOG ?? ".sentinel/events.jsonl";
+
+/**
+ * Raised by `sentinel watch` when the market moves into a state where the
+ * Guardian could fire. A scheduled host session picks this up and runs a full
+ * cycle. Nothing here decides to trade.
+ */
+export const ATTENTION_PATH =
+  process.env.SENTINEL_ATTENTION ?? ".sentinel/attention.json";

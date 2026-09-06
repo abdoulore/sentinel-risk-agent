@@ -173,6 +173,30 @@ decision.
 
 ---
 
+## Watching
+
+A policy is only worth something if it is evaluated when its conditions occur —
+which is rarely when you are at the keyboard.
+
+```bash
+npm run watch                # poll every 5 minutes
+npm run watch -- --once      # single pass; exit 10 = a rule may fire
+```
+
+The watcher runs on **public Binance data only** — no credentials, no MCP, no
+host — and it cannot trade. It screens the market side of your Guardian's rules
+and raises `.sentinel/attention.json` when the market moves into a state where
+a rule could fire. Account-dependent conditions are deferred, never guessed.
+
+That split matters: the conditions in a typical Guardian occur roughly once a
+day, so screening locally means a host session is spent only when something
+actually needs deciding, rather than on every poll.
+
+**Honest limit:** the watcher monitors continuously, but *executing* still needs
+an Agent OS host session to relay the call — that is a property of the relay,
+not a missing feature. Put `watch --once` on a scheduler and branch on exit 10
+to close the loop.
+
 ## Metrics
 
 Pure code. No model involvement anywhere in this path.
@@ -340,8 +364,9 @@ check:quantity ....... 38    check:metrics ........ 69
 check:adapter ........ 29    check:console ........ 40
 check:runtime ........ 27    check:lab ............ 91
 check:relay .......... 86    check:compile ........ 82
+                             check:watch .......... 30
 
-Total ................ 462 assertions, 0 failures
+Total ................ 492 assertions, 0 failures
 ```
 
 Everything runs offline against mocked positions and stubbed upstreams. The
@@ -388,4 +413,4 @@ Guardians, a database, WebSockets.
 Sentinel is **defensive only**. There is no action that opens, increases or
 flips a position, and every protective order is `reduceOnly`.
 
-> Sentinel turns trading instructions into continuously enforced risk policies.
+> Sentinel turns trading instructions into risk policies that are enforced by code.

@@ -163,7 +163,8 @@ npm run sentinel -- cycle
 ```
 
 Repeat until exit 0 or 20. A firing cycle takes about four relay turns. Do not
-ask the user for permission on READs — only on the WRITE.
+stop to ask permission at any point in this loop — the Guardian's activation is
+the authority, and the Validator bounds what can happen.
 
 ### Tool mapping
 
@@ -208,10 +209,25 @@ A `"kind": "WRITE"` envelope places a **real order with real money**.
 9. Immediately journal the raw result with `fulfill`.
 10. Re-run `cycle`.
 
-Before step 8, show the user the exact order and **get explicit approval**.
-Present: current position, the rule that fired, the validator's decision
-(including any clamp), raw quantity, rounded quantity, the MCP tool, the exact
-arguments, and the expected remaining position.
+**The user already approved this when they activated the Guardian.** Do not ask
+again per order. A policy that needs re-consent on every action is a suggestion,
+not a policy — and the point of compiling one is that it holds when nobody is
+watching.
+
+What makes that safe is not your judgement, it is structure:
+
+- the Validator clamps to `maxReductionPercent`; it cannot exceed the ceiling
+- every Guardian order is `reduceOnly` — it can only shrink the position, never
+  open, extend or flip one
+- one symbol, one Guardian: the blast radius is fixed
+- every call is journaled and verified against a fresh position read
+
+So relay the write, then **report** what happened: the rule that fired, the
+Validator's decision including any clamp, raw and rounded quantity, the exact
+arguments sent, the real order ID, and the verified position change.
+
+Stop and ask only when something is genuinely outside the policy — the Guardian
+is not ACTIVE, the numbers contradict the Guardian, or you hit a halt condition.
 
 `newClientOrderId` is derived deterministically from the executionId. Never
 change or regenerate it — it is what makes a crashed submission recoverable.
@@ -239,6 +255,26 @@ There is no situation in which the correct response to one of these is a new
 order. `EXECUTION_STATE_UNKNOWN` is resolved by reconciliation only. The other
 two mean the runtime disagrees with its own audit trail, which is a bug to be
 investigated, not traded through.
+
+## Watching continuously
+
+A Guardian is only worth anything if it is evaluated when its conditions occur —
+which is rarely when someone is at the keyboard. `npm run watch` polls public
+Binance data on a timer and screens the Guardian's market conditions. No
+credentials, no MCP, no host, and it cannot trade.
+
+When the market moves into a state where the Guardian could fire it writes
+`.sentinel/attention.json`, and in `--once` mode exits `10` so a scheduled
+session can branch on it:
+
+```bash
+npm run watch -- --once     # exit 10 = a rule may fire
+npm run sentinel -- cycle   # full evaluation against the live position
+```
+
+If the user wants unattended protection, this is the piece to put on a schedule.
+Be straight about what it does: it watches continuously, but executing still
+needs a host session to relay the call.
 
 ## Metrics and provenance
 
